@@ -44,9 +44,10 @@ enum TokenSpec = [
 ];
 ----
  */
-template Lexer1(R, alias decls)
+template LexerEnum(alias decls) if(decls.length)
 {
-    alias defineToken!(eagerMap!q{a._name}(decls)) Lexer1;
+    static immutable names = eagerMap!q{a._name}(decls);
+    mixin(enumMixin(names));
 }
 
 /*
@@ -57,7 +58,7 @@ template Lexer1(R, alias decls)
  *      defaultAction - called when a token pattern is matched
  *      skipAction - called once when input is set and then after each match
  *      recoverAction - called when input could not be matched
- *      TokenSpec - same as for Lexer1
+ *      TokenSpec - same as for LexerEnum
  *
 
 Example:
@@ -88,7 +89,7 @@ struct BeanLexer
         tok("", [Bean('A')], q{onA}),
     ];
 
-    alias Lexer1!(Bean[], TokenSpec) Tok;
+    alias LexerEnum!(TokenSpec) Tok;
 
     struct Token
     {
@@ -205,7 +206,7 @@ mixin template Lexer2
 {
     import std.range, std.traits;
 
-    alias defineToken!(eagerMap!q{a._name}(decls)) _TokId;
+    alias LexerEnum!(decls) _TokId;
 
     alias typeof(defaultAction(_TokId.init, _input, 0)) Token;
 
@@ -265,8 +266,8 @@ private:
 
     Token nextTokenImpl(ref R saved, R input)
     {
-        enum _trie = makeTrie(decls);
-        enum _elems = _trie.elems; // needed by mixin code
+        static immutable _trie = makeTrie(decls);
+        static immutable _elems = _trie.elems; // needed by mixin code
 
         mixin(_trie.makeCode());
     }
@@ -279,7 +280,7 @@ private:
 /*
  * Turns sorted pattern definitions into a trie like switch function.
  */
-Trie!R makeTrie(R)(TokenDeclaration!R[] decls)
+Trie!R makeTrie(R)(in TokenDeclaration!R[] decls)
 // public to be accessible from mixin
 {
     Trie!R trie;
@@ -330,12 +331,7 @@ auto eagerMap(alias fun, R)(R r)
 
 private:
 
-template defineToken(alias names) if(names.length)
-{
-    mixin(enumMixin(names));
-}
-
-string enumMixin()(string[] names)
+string enumMixin()(in string[] names)
 {
     /*
      * Make enum members unique. Use index sort to preserve the
@@ -357,7 +353,7 @@ string enumMixin()(string[] names)
     }
     auto onames = sort!compare(sorted[0 .. $-tgt.length]);
 
-    string res = "enum defineToken\n{\n";
+    string res = "enum LexerEnum\n{\n";
     foreach(idx; onames)
     {
         res ~= "    " ~ names[idx] ~ ",\n";

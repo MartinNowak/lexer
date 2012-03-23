@@ -1,5 +1,5 @@
 import std.algorithm, std.bitmanip, std.conv, std.exception, std.file,
-    std.functional, std.range, std.stdio, std.stream, std.string, std.traits, std.typetuple, std.uni;
+    std.functional, std.range, std.stream, std.string, std.traits, std.typetuple, std.uni;
 static import std.ascii;
 import lexer;
 
@@ -13,7 +13,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
 {
     alias TokenDeclaration!string tok;
 
-    enum Tokens = [
+    immutable Tokens = [
         tok("Lcurly"    , "{"   ),
         tok("Rcurly"    , "}"   ),
         tok("Lparen"    , "("   ),
@@ -108,7 +108,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
      * Declare enum members used by hooks. Identifier is also used to
      * mark start of keywords.
      */
-    enum Additional = [
+    immutable Additional = [
         tok("SpecialTokenSeq", "#" , q{specialTokenSeq}),
         tok("Number"         ),
         tok("Identifier"     ),
@@ -120,7 +120,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
      * hash table. Keywords must be capitalized to not conflict with D's
      * keywords, special tokens (__LINE__) are also added capitalized.
      */
-    enum Keywords = [
+    immutable Keywords = [
         tok("This"           ),
         tok("Super"          ),
         tok("Assert"         ),
@@ -249,13 +249,13 @@ struct DLexer(R) if(is(ElementType!R : dchar))
         tok("__Line__"       ),
     ];
 
-    enum TokenSpec = Tokens ~ Additional ~ Keywords;
+    immutable TokenSpec = Tokens ~ Additional ~ Keywords;
 
     /*
      * First stage of lexer template. Provides the Tok enum. It will
      * not instantiate any actions nor defines any members/methods.
      */
-    alias Lexer1!(R, TokenSpec) Tok;
+    alias LexerEnum!(TokenSpec) Tok;
     static struct Loc
     {
         this(uint line=1, ushort col=0)
