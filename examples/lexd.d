@@ -20,7 +20,6 @@ int main(string[] args)
         {
             auto lexer = lexFile(arg);
             size_t sum;
-            alias lexer.Tok Tok;
             foreach(tok; lexer)
             {
                 ++sum;

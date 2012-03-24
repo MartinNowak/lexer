@@ -8,387 +8,437 @@ import lexer;
  */
 enum tabWidth = 4;
 
+private alias TokenDeclaration!string tok;
+
+immutable Tokens = [
+    tok("Lcurly"    , "{"   ),
+    tok("Rcurly"    , "}"   ),
+    tok("Lparen"    , "("   ),
+    tok("Rparen"    , ")"   ),
+    tok("Lbracket"  , "["   ),
+    tok("Rbracket"  , "]"   ),
+    tok("Semicolon" , ";"   ),
+    tok("Colon"     , ":"   ),
+    tok("Comma"     , ","   ),
+    tok("Dot"       , "."    , q{lexDot}), // can be start of float
+    tok("Xor"       , "^"   ),
+    tok("Xorass"    , "^="  ),
+    tok("Assign"    , "="   ),
+    tok("Lt"        , "<"   ),
+    tok("Gt"        , ">"   ),
+    tok("Le"        , "<="  ),
+    tok("Ge"        , ">="  ),
+    tok("Equal"     , "=="  ),
+    tok("Notequal"  , "!="  ),
+    tok("Tobool"    , "!!"  ),
+    tok("Unord"     , "!<>="),
+    tok("Ue"        , "!<>" ),
+    tok("Lg"        , "<>"  ),
+    tok("Leg"       , "<>=" ),
+    tok("Ule"       , "!>"  ),
+    tok("Ul"        , "!>=" ),
+    tok("Uge"       , "!<"  ),
+    tok("Ug"        , "!<=" ),
+    tok("Not"       , "!"   ),
+    //tok("IsNot"     , "!is" ),
+    tok("Shl"       , "<<"  ),
+    tok("Shr"       , ">>"  ),
+    tok("Ushr"      , ">>>" ),
+    tok("Add"       , "+"   ),
+    tok("Min"       , "-"   ),
+    tok("Mul"       , "*"   ),
+    tok("Div"       , "/"   ),
+    tok("Mod"       , "%"   ),
+    tok("Slice"     , ".."  ),
+    tok("Dotdotdot" , "..." ),
+    tok("And"       , "&"   ),
+    tok("Andand"    , "&&"  ),
+    tok("Or"        , "|"   ),
+    tok("Oror"      , "||"  ),
+    //tok("Array"     , "[]"  ),
+    //tok("Index"     , "[i]" ),
+    //tok("Address"   , "&"   ),
+    //tok("Star"      , "*"   ),
+    tok("Tilde"     , "~"   ),
+    tok("Dollar"    , "$"   ),
+    tok("Plusplus"  , "++"  ),
+    tok("Minusminus", "--"  ),
+    tok("Question"  , "?"   ),
+    //tok("Neg"       , "-"   ),
+    //tok("Uadd"      , "+"   ),
+    //tok("Var"       , "var" ),
+    tok("Addass"    , "+="  ),
+    tok("Minass"    , "-="  ),
+    tok("Mulass"    , "*="  ),
+    tok("Divass"    , "/="  ),
+    tok("Modass"    , "%="  ),
+    tok("Shlass"    , "<<=" ),
+    tok("Shrass"    , ">>=" ),
+    tok("Ushrass"   , ">>>="),
+    tok("Andass"    , "&="  ),
+    tok("Catass"    , "~="  ),
+    //tok("Cat"       , "~"   ),
+    tok("Orass"     , "|="  ),
+    tok("At"        , "@"   ),
+    tok("Pow"       , "^^"  ),
+    tok("Powass"    , "^^=" ),
+    tok("Goesto"    , "=>"  ),
+    tok("StringLit" , "\""   , q{doubleQuotedString}   ),
+    tok("StringLit" , "r\""  , q{wysiwygString}        ),
+    tok("StringLit" , "`"    , q{wysiwygString}        ),
+    tok("StringLit" , "q\""  , q{delimitedString}      ),
+    tok("StringLit" , "q{"   , q{tokenString}          ),
+    tok("StringLit" , "x\""  , q{hexString}            ),
+    tok("CharLit"   , "'"    , q{lexCharLit}           ),
+    tok("CharLit"   , "'\\x" , q{charLexer!(hexChar!2)}),
+    tok("CharLit"   , "'\\u" , q{charLexer!(hexChar!4)}),
+    tok("CharLit"   , "'\\U" , q{charLexer!(hexChar!8)}),
+    tok("CharLit"   , "'\\&" , q{charLexer!namedChar}  ),
+    tok("CharLit"   , "'\\"  , q{charLexer!escapeChar} ),
+
+    tok("LComment"  , "//"   , q{lineComment}          ),
+    tok("BComment"  , "/*"   , q{blockComment}         ),
+    tok("BComment"  , "/+"   , q{blockComment}         ),
+];
+
+/*
+ * Declare enum members used by hooks. Identifier is also used to
+ * mark start of keywords.
+ */
+immutable Additional = [
+    tok("SpecialTokenSeq", "#" , q{specialTokenSeq}),
+    tok("Number"         ),
+    tok("Identifier"     ),
+];
+
+/*
+ * Declare enum members for keywords but don't lex their
+ * patterns. Instead they are lexed as identifiers and looked up in a
+ * hash table. Keywords must be capitalized to not conflict with D's
+ * keywords, special tokens (__LINE__) are also added capitalized.
+ */
+immutable Keywords = [
+    tok("This"           ),
+    tok("Super"          ),
+    tok("Assert"         ),
+    tok("Null"           ),
+    tok("True"           ),
+    tok("False"          ),
+    tok("Cast"           ),
+    tok("New"            ),
+    tok("Delete"         ),
+    tok("Throw"          ),
+    tok("Module"         ),
+    tok("Pragma"         ),
+    tok("Typeof"         ),
+    tok("Typeid"         ),
+
+    tok("Template"       ),
+
+    tok("Void"           ),
+    tok("Byte"           ),
+    tok("Ubyte"          ),
+    tok("Short"          ),
+    tok("Ushort"         ),
+    tok("Int"            ),
+    tok("Uint"           ),
+    tok("Long"           ),
+    tok("Ulong"          ),
+    tok("Cent"           ),
+    tok("Ucent"          ),
+    tok("Float"          ),
+    tok("Double"         ),
+    tok("Real"           ),
+
+    tok("Bool"           ),
+    tok("Char"           ),
+    tok("Wchar"          ),
+    tok("Dchar"          ),
+
+    tok("Ifloat"         ),
+    tok("Idouble"        ),
+    tok("Ireal"          ),
+
+    tok("Cfloat"         ),
+    tok("Cdouble"        ),
+    tok("Creal"          ),
+
+    tok("Delegate"       ),
+    tok("Function"       ),
+
+    tok("Is"             ),
+    tok("If"             ),
+    tok("Else"           ),
+    tok("While"          ),
+    tok("For"            ),
+    tok("Do"             ),
+    tok("Switch"         ),
+    tok("Case"           ),
+    tok("Default"        ),
+    tok("Break"          ),
+    tok("Continue"       ),
+    tok("Synchronized"   ),
+    tok("Return"         ),
+    tok("Goto"           ),
+    tok("Try"            ),
+    tok("Catch"          ),
+    tok("Finally"        ),
+    tok("With"           ),
+    tok("Asm"            ),
+    tok("Foreach"        ),
+    tok("Foreach_reverse"),
+    tok("Scope"          ),
+
+    tok("Struct"         ),
+    tok("Class"          ),
+    tok("Interface"      ),
+    tok("Union"          ),
+    tok("Enum"           ),
+    tok("Import"         ),
+    tok("Mixin"          ),
+    tok("Static"         ),
+    tok("Final"          ),
+    tok("Const"          ),
+    tok("Typedef"        ),
+    tok("Alias"          ),
+    tok("Override"       ),
+    tok("Abstract"       ),
+    tok("Volatile"       ),
+    tok("Debug"          ),
+    tok("Deprecated"     ),
+    tok("In"             ),
+    tok("Out"            ),
+    tok("Inout"          ),
+    tok("Lazy"           ),
+    tok("Auto"           ),
+
+    tok("Align"          ),
+    tok("Extern"         ),
+    tok("Private"        ),
+    tok("Package"        ),
+    tok("Protected"      ),
+    tok("Public"         ),
+    tok("Export"         ),
+
+    tok("Body"           ),
+    tok("Invariant"      ),
+    tok("Unittest"       ),
+    tok("Version"        ),
+
+    tok("Ref"            ),
+    tok("Macro"          ),
+    tok("Pure"           ),
+    tok("Nothrow"        ),
+    tok("__ArgTypes"     ),
+    tok("__Thread"       ),
+    tok("__GShared"      ),
+    tok("__Traits"       ),
+    tok("__Overloadset"  ),
+    tok("Shared"         ),
+    tok("Immutable"      ),
+    tok("__Date__"       ),
+    tok("__Eof__"        ),
+    tok("__Time__"       ),
+    tok("__TimeStamp__"  ),
+    tok("__Vendor__"     ),
+    tok("__Version__"    ),
+    tok("__File__"       ),
+    tok("__Line__"       ),
+];
+
+immutable TokenSpec = Tokens ~ Additional ~ Keywords;
+
+/**
+ * Tok enum.
+ */
+alias LexerEnum!(TokenSpec) Tok;
+
+/**
+ * Keyword -> Tok
+ */
+immutable Tok[string] keywords;
+
+/**
+ * Tok -> string
+ */
+immutable string[Tok] tokToString;
+
+private static string keywordTab()
+{
+    string tab = "[";
+    foreach(decl; Keywords)
+    {
+        string pattern = decl._name.front == '_'
+            ? toUpper(decl._name)
+            : toLower(decl._name);
+
+        tab ~= "\"" ~ pattern ~ "\": Tok." ~ decl._name ~ ", ";
+    }
+    tab ~= "]";
+    return tab;
+}
+
+private static string tokToStringTab()
+{
+    bool[string] set;
+    string tab = "[";
+
+    foreach(i, decl; Tokens)
+    {
+        if (decl._name in set)
+            continue;
+
+        tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
+        set[decl._name] = true;
+    }
+    tab ~= "]";
+    return tab;
+}
+
+shared static this()
+{
+    keywords = mixin(keywordTab());
+    tokToString = mixin(tokToStringTab());
+}
+
+/**
+ * Source location
+ */
+static struct Loc
+{
+    this(uint line=1, ushort col=0)
+    {
+        _line = line;
+        _col = col;
+    }
+
+    string toString()
+    {
+        auto app = appender!string();
+        writeTo(app);
+        return app.data;
+    }
+
+    void writeTo(R)(R outp) if(isOutputRange!(R, dchar))
+    {
+        std.format.formattedWrite(outp, "(%d,%d)", _line, _col);
+    }
+
+    uint _line;
+    uint _col;
+
+    alias _line this;
+}
+
+/**
+ * Lexer element type
+ */
+static struct DToken
+{
+    this(Tok id, Loc loc)
+    {
+        _id = id;
+        _loc = loc;
+    }
+
+    this(Tok id, string text, Loc loc, StringSuffix suffix=StringSuffix.none)
+    {
+        this(id, loc);
+        _text = text;
+        _stringSuffix = suffix;
+    }
+
+    this(Tok id, string text, Loc loc, NumberType ntype)
+    {
+        this(id, text, loc);
+        _numberType = ntype;
+    }
+
+    string toString()
+    {
+        auto app = appender!(string)();
+        std.format.formattedWrite(app, "%s", _id);
+        _loc.writeTo(app);
+        while (app.data.length < 20)
+            app.put(' ');
+        app.put(": ");
+        writeTo(app);
+        if (_id == Tok.Number)
+        {
+            app.put(' ');
+            app.put(to!string(_numberType));
+        }
+        return app.data;
+    }
+
+    size_t writeTo(R)(ref R outp) if (isOutputRange!(R, dchar))
+    {
+        alias std.format.formattedWrite fmt;
+        size_t len;
+        switch (_id)
+        {
+        case Tok.Number:
+        case Tok.CharLit:
+        case Tok.StringLit:
+        case Tok.LComment:
+        case Tok.BComment:
+        case Tok.Identifier:
+        case Tok.SpecialTokenSeq:
+            for (size_t i; i < _text.length; ++len)
+                outp.put(std.utf.decode(_text, i));
+            break;
+
+        default:
+            if (_id < Tok.Identifier)
+            {
+                auto s = *enforce(_id in tokToString, to!string(_id));
+                for (size_t i; i < s.length; ++len)
+                    outp.put(std.utf.decode(s, i));
+            }
+            else
+            {
+                auto s = to!string(_id);
+                if (s.front == '_')
+                    s = toUpper(s);
+                else
+                    s = toLower(s);
+
+                for (size_t i; i < s.length; ++len)
+                    outp.put(std.utf.decode(s, i));
+            }
+            break;
+        }
+        return len;
+    }
+
+    string _text;
+    Tok _id;
+    Loc _loc;
+
+    enum StringSuffix { none, c, w, d }
+    enum NumberType
+    {
+        Int,
+        UInt,
+        Long,
+        ULong,
+        Double,
+        Float,
+        Real,
+        IDouble,
+        IFloat,
+        IReal,
+    }
+
+    mixin(bitfields!(
+              StringSuffix, "_stringSuffix", 2,
+              NumberType  , "_numberType"  , 4,
+              uint, "", 2,
+          ));
+}
 
 struct DLexer(R) if(is(ElementType!R : dchar))
 {
-    alias TokenDeclaration!string tok;
-
-    immutable Tokens = [
-        tok("Lcurly"    , "{"   ),
-        tok("Rcurly"    , "}"   ),
-        tok("Lparen"    , "("   ),
-        tok("Rparen"    , ")"   ),
-        tok("Lbracket"  , "["   ),
-        tok("Rbracket"  , "]"   ),
-        tok("Semicolon" , ";"   ),
-        tok("Colon"     , ":"   ),
-        tok("Comma"     , ","   ),
-        tok("Dot"       , "."    , q{lexDot}), // can be start of float
-        tok("Xor"       , "^"   ),
-        tok("Xorass"    , "^="  ),
-        tok("Assign"    , "="   ),
-        tok("Lt"        , "<"   ),
-        tok("Gt"        , ">"   ),
-        tok("Le"        , "<="  ),
-        tok("Ge"        , ">="  ),
-        tok("Equal"     , "=="  ),
-        tok("Notequal"  , "!="  ),
-        tok("Tobool"    , "!!"  ),
-        tok("Unord"     , "!<>="),
-        tok("Ue"        , "!<>" ),
-        tok("Lg"        , "<>"  ),
-        tok("Leg"       , "<>=" ),
-        tok("Ule"       , "!>"  ),
-        tok("Ul"        , "!>=" ),
-        tok("Uge"       , "!<"  ),
-        tok("Ug"        , "!<=" ),
-        tok("Not"       , "!"   ),
-        //tok("IsNot"     , "!is" ),
-        tok("Shl"       , "<<"  ),
-        tok("Shr"       , ">>"  ),
-        tok("Ushr"      , ">>>" ),
-        tok("Add"       , "+"   ),
-        tok("Min"       , "-"   ),
-        tok("Mul"       , "*"   ),
-        tok("Div"       , "/"   ),
-        tok("Mod"       , "%"   ),
-        tok("Slice"     , ".."  ),
-        tok("Dotdotdot" , "..." ),
-        tok("And"       , "&"   ),
-        tok("Andand"    , "&&"  ),
-        tok("Or"        , "|"   ),
-        tok("Oror"      , "||"  ),
-        //tok("Array"     , "[]"  ),
-        //tok("Index"     , "[i]" ),
-        //tok("Address"   , "&"   ),
-        //tok("Star"      , "*"   ),
-        tok("Tilde"     , "~"   ),
-        tok("Dollar"    , "$"   ),
-        tok("Plusplus"  , "++"  ),
-        tok("Minusminus", "--"  ),
-        tok("Question"  , "?"   ),
-        //tok("Neg"       , "-"   ),
-        //tok("Uadd"      , "+"   ),
-        //tok("Var"       , "var" ),
-        tok("Addass"    , "+="  ),
-        tok("Minass"    , "-="  ),
-        tok("Mulass"    , "*="  ),
-        tok("Divass"    , "/="  ),
-        tok("Modass"    , "%="  ),
-        tok("Shlass"    , "<<=" ),
-        tok("Shrass"    , ">>=" ),
-        tok("Ushrass"   , ">>>="),
-        tok("Andass"    , "&="  ),
-        tok("Catass"    , "~="  ),
-        //tok("Cat"       , "~"   ),
-        tok("Orass"     , "|="  ),
-        tok("At"        , "@"   ),
-        tok("Pow"       , "^^"  ),
-        tok("Powass"    , "^^=" ),
-        tok("Goesto"    , "=>"  ),
-        tok("StringLit" , "\""   , q{doubleQuotedString}   ),
-        tok("StringLit" , "r\""  , q{wysiwygString}        ),
-        tok("StringLit" , "`"    , q{wysiwygString}        ),
-        tok("StringLit" , "q\""  , q{delimitedString}      ),
-        tok("StringLit" , "q{"   , q{tokenString}          ),
-        tok("StringLit" , "x\""  , q{hexString}            ),
-        tok("CharLit"   , "'"    , q{lexCharLit}           ),
-        tok("CharLit"   , "'\\x" , q{charLexer!(hexChar!2)}),
-        tok("CharLit"   , "'\\u" , q{charLexer!(hexChar!4)}),
-        tok("CharLit"   , "'\\U" , q{charLexer!(hexChar!8)}),
-        tok("CharLit"   , "'\\&" , q{charLexer!namedChar}  ),
-        tok("CharLit"   , "'\\"  , q{charLexer!escapeChar} ),
-
-        tok("LComment"  , "//"   , q{lineComment}          ),
-        tok("BComment"  , "/*"   , q{blockComment}         ),
-        tok("BComment"  , "/+"   , q{blockComment}         ),
-    ];
-
-    /*
-     * Declare enum members used by hooks. Identifier is also used to
-     * mark start of keywords.
-     */
-    immutable Additional = [
-        tok("SpecialTokenSeq", "#" , q{specialTokenSeq}),
-        tok("Number"         ),
-        tok("Identifier"     ),
-    ];
-
-    /*
-     * Declare enum members for keywords but don't lex their
-     * patterns. Instead they are lexed as identifiers and looked up in a
-     * hash table. Keywords must be capitalized to not conflict with D's
-     * keywords, special tokens (__LINE__) are also added capitalized.
-     */
-    immutable Keywords = [
-        tok("This"           ),
-        tok("Super"          ),
-        tok("Assert"         ),
-        tok("Null"           ),
-        tok("True"           ),
-        tok("False"          ),
-        tok("Cast"           ),
-        tok("New"            ),
-        tok("Delete"         ),
-        tok("Throw"          ),
-        tok("Module"         ),
-        tok("Pragma"         ),
-        tok("Typeof"         ),
-        tok("Typeid"         ),
-
-        tok("Template"       ),
-
-        tok("Void"           ),
-        tok("Byte"           ),
-        tok("Ubyte"          ),
-        tok("Short"          ),
-        tok("Ushort"         ),
-        tok("Int"            ),
-        tok("Uint"           ),
-        tok("Long"           ),
-        tok("Ulong"          ),
-        tok("Cent"           ),
-        tok("Ucent"          ),
-        tok("Float"          ),
-        tok("Double"         ),
-        tok("Real"           ),
-
-        tok("Bool"           ),
-        tok("Char"           ),
-        tok("Wchar"          ),
-        tok("Dchar"          ),
-
-        tok("Ifloat"         ),
-        tok("Idouble"        ),
-        tok("Ireal"          ),
-
-        tok("Cfloat"         ),
-        tok("Cdouble"        ),
-        tok("Creal"          ),
-
-        tok("Delegate"       ),
-        tok("Function"       ),
-
-        tok("Is"             ),
-        tok("If"             ),
-        tok("Else"           ),
-        tok("While"          ),
-        tok("For"            ),
-        tok("Do"             ),
-        tok("Switch"         ),
-        tok("Case"           ),
-        tok("Default"        ),
-        tok("Break"          ),
-        tok("Continue"       ),
-        tok("Synchronized"   ),
-        tok("Return"         ),
-        tok("Goto"           ),
-        tok("Try"            ),
-        tok("Catch"          ),
-        tok("Finally"        ),
-        tok("With"           ),
-        tok("Asm"            ),
-        tok("Foreach"        ),
-        tok("Foreach_reverse"),
-        tok("Scope"          ),
-
-        tok("Struct"         ),
-        tok("Class"          ),
-        tok("Interface"      ),
-        tok("Union"          ),
-        tok("Enum"           ),
-        tok("Import"         ),
-        tok("Mixin"          ),
-        tok("Static"         ),
-        tok("Final"          ),
-        tok("Const"          ),
-        tok("Typedef"        ),
-        tok("Alias"          ),
-        tok("Override"       ),
-        tok("Abstract"       ),
-        tok("Volatile"       ),
-        tok("Debug"          ),
-        tok("Deprecated"     ),
-        tok("In"             ),
-        tok("Out"            ),
-        tok("Inout"          ),
-        tok("Lazy"           ),
-        tok("Auto"           ),
-
-        tok("Align"          ),
-        tok("Extern"         ),
-        tok("Private"        ),
-        tok("Package"        ),
-        tok("Protected"      ),
-        tok("Public"         ),
-        tok("Export"         ),
-
-        tok("Body"           ),
-        tok("Invariant"      ),
-        tok("Unittest"       ),
-        tok("Version"        ),
-
-        tok("Ref"            ),
-        tok("Macro"          ),
-        tok("Pure"           ),
-        tok("Nothrow"        ),
-        tok("__ArgTypes"     ),
-        tok("__Thread"       ),
-        tok("__GShared"      ),
-        tok("__Traits"       ),
-        tok("__Overloadset"  ),
-        tok("Shared"         ),
-        tok("Immutable"      ),
-        tok("__Date__"       ),
-        tok("__Eof__"        ),
-        tok("__Time__"       ),
-        tok("__TimeStamp__"  ),
-        tok("__Vendor__"     ),
-        tok("__Version__"    ),
-        tok("__File__"       ),
-        tok("__Line__"       ),
-    ];
-
-    immutable TokenSpec = Tokens ~ Additional ~ Keywords;
-
-    /*
-     * First stage of lexer template. Provides the Tok enum. It will
-     * not instantiate any actions nor defines any members/methods.
-     */
-    alias LexerEnum!(TokenSpec) Tok;
-    static struct Loc
-    {
-        this(uint line=1, ushort col=0)
-        {
-            _line = line;
-            _col = col;
-        }
-
-        string toString()
-        {
-            auto app = appender!string();
-            writeTo(app);
-            return app.data;
-        }
-
-        void writeTo(R)(R outp) if(isOutputRange!(R, dchar))
-        {
-            std.format.formattedWrite(outp, "(%d,%d)", _line, _col);
-        }
-
-        uint _line;
-        uint _col;
-
-        alias _line this;
-    }
-
-    static struct DToken
-    {
-        this(Tok id, Loc loc)
-        {
-            _id = id;
-            _loc = loc;
-        }
-
-        this(Tok id, string text, Loc loc, StringSuffix suffix=StringSuffix.none)
-        {
-            this(id, loc);
-            _text = text;
-            _stringSuffix = suffix;
-        }
-
-        this(Tok id, string text, Loc loc, NumberType ntype)
-        {
-            this(id, text, loc);
-            _numberType = ntype;
-        }
-
-        string toString()
-        {
-            auto app = appender!(string)();
-            std.format.formattedWrite(app, "%s", _id);
-            _loc.writeTo(app);
-            while (app.data.length < 20)
-                app.put(' ');
-            app.put(": ");
-            writeTo(app);
-            if (_id == Tok.Number)
-            {
-                app.put(' ');
-                app.put(to!string(_numberType));
-            }
-            return app.data;
-        }
-
-        size_t writeTo(R)(ref R outp) if (isOutputRange!(R, dchar))
-        {
-            alias std.format.formattedWrite fmt;
-            size_t len;
-            switch (_id)
-            {
-            case Tok.Number:
-            case Tok.CharLit:
-            case Tok.StringLit:
-            case Tok.LComment:
-            case Tok.BComment:
-            case Tok.Identifier:
-            case Tok.SpecialTokenSeq:
-                for (size_t i; i < _text.length; ++len)
-                    outp.put(std.utf.decode(_text, i));
-                break;
-
-            default:
-                if (_id < Tok.Identifier)
-                {
-                    auto s = *enforce(_id in tokstrings, to!string(_id));
-                    for (size_t i; i < s.length; ++len)
-                        outp.put(std.utf.decode(s, i));
-                }
-                else
-                {
-                    auto s = to!string(_id);
-                    if (s.front == '_')
-                        s = toUpper(s);
-                    else
-                        s = toLower(s);
-
-                    for (size_t i; i < s.length; ++len)
-                        outp.put(std.utf.decode(s, i));
-                }
-                break;
-            }
-            return len;
-        }
-
-        union
-        {
-            string _text;
-        }
-        Tok _id;
-        Loc _loc;
-
-        enum StringSuffix { none, c, w, d }
-        enum NumberType
-        {
-            Int,
-            UInt,
-            Long,
-            ULong,
-            Double,
-            Float,
-            Real,
-            IDouble,
-            IFloat,
-            IReal,
-        }
-
-        mixin(bitfields!(
-                  StringSuffix, "_stringSuffix", 2,
-                  NumberType  , "_numberType"  , 4,
-                  uint, "", 2,
-              ));
-    }
-
     DToken.StringSuffix stringSuffix(ref R input)
     {
         DToken.StringSuffix suffix;
@@ -1336,47 +1386,6 @@ struct DLexer(R) if(is(ElementType!R : dchar))
             return to!string(takeExactly(input, len));
     }
 
-    static string keywordTab()
-    {
-        string tab = "[";
-        foreach(decl; Keywords)
-        {
-            string pattern = decl._name.front == '_'
-                ? toUpper(decl._name)
-                : toLower(decl._name);
-
-            tab ~= "\"" ~ pattern ~ "\": Tok." ~ decl._name ~ ", ";
-        }
-        tab ~= "]";
-        return tab;
-    }
-
-    static string tokstringTab()
-    {
-        bool[string] set;
-        string tab = "[";
-
-        foreach(i, decl; Tokens)
-        {
-            if (decl._name in set)
-                continue;
-
-            tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
-            set[decl._name] = true;
-        }
-        tab ~= "]";
-        return tab;
-    }
-
-    shared static this()
-    {
-        keywords = mixin(keywordTab());
-        tokstrings = mixin(tokstringTab());
-    }
-
-    static immutable Tok[string] keywords;
-    static immutable string[Tok] tokstrings;
-
     Loc _loc = Loc(1);
     string _filename;
 }
@@ -1498,7 +1507,7 @@ string toUtf8(ubyte[] buf)
 void putTokens(RI, RO)(DLexer!RI lexer, auto ref RO outp)
     if (isOutputRange!(RO, dchar))
 {
-    lexer.Loc loc = lexer._loc;
+    Loc loc = lexer._loc;
     foreach(tok; lexer)
     {
         while (tok._loc._line > loc._line)
@@ -1511,7 +1520,7 @@ void putTokens(RI, RO)(DLexer!RI lexer, auto ref RO outp)
             put(outp, ' ');
         }
 
-        if (tok._id == lexer.Tok.BComment || tok._id == lexer.Tok.StringLit)
+        if (tok._id == Tok.BComment || tok._id == Tok.StringLit)
         {
             tok.writeTo(outp);
             auto s = tok._text;
