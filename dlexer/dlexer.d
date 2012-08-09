@@ -1393,7 +1393,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
 /**
  * Reads file at $(D_Param path) and return a DLexer for it.
  */
-DLexer!string lexFile(string path)
+DLexer!string lexFile()(string path)
 {
     auto buf = cast(ubyte[])std.file.read(path);
     auto text = toUtf8(buf);
