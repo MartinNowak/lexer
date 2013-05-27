@@ -313,18 +313,11 @@ auto eagerMap(alias fun, R)(R r)
     alias unaryFun!fun _fun;
     alias typeof(_fun(ElementType!(R).init)) E;
 
-    static if (hasLength!R)
+    E[] result;
+    foreach(e; r)
     {
-        E[] result;
-        result.length = r.length;
-        foreach(i, e; r)
-            result[i] = _fun(e);
-    }
-    else
-    {
-        E[] result;
-        foreach(e; r)
-            result ~= _fun(e);
+        E val = _fun(e);
+        result ~= val;
     }
     return result;
 }
