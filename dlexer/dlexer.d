@@ -284,7 +284,8 @@ immutable Tok[string] keywords;
 /**
  * Tok -> string
  */
-immutable string[Tok] tokToString;
+immutable string[NEntries] tokToString = mixin(tokToStringAry())[0 .. NEntries];
+private immutable NEntries = Complete.length + Keywords.length + InternalKeywords.length;
 
 private static string keywordTab()
 {
@@ -297,24 +298,22 @@ private static string keywordTab()
     return tab;
 }
 
-private static string tokToStringTab()
+private static string tokToStringAry()
 {
-    string tab = "[";
+    string ary = "[";
     foreach(i, decl; Complete)
-        tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
+        ary ~= "`" ~ decl._pattern ~ "`,\n";
     foreach(i, decl; Keywords)
-        tab ~= "Tok." ~ decl._name ~ " : `" ~ toLower(decl._name) ~ "`,\n";
+        ary ~= "`" ~ toLower(decl._name) ~ "`,\n";
     foreach(i, decl; InternalKeywords)
-        tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
-    tab ~= "]";
-    return tab;
+        ary ~= "`" ~ decl._pattern ~ "`,\n";
+    ary ~= "]";
+    return ary;
 }
 
 shared static this()
 {
     keywords = mixin(keywordTab());
-    tokToString = mixin(tokToStringTab());
-    pragma(msg, tokToStringTab());
 }
 
 /**
@@ -390,13 +389,15 @@ static struct DToken
     size_t writeTo(R)(ref R outp) if (isOutputRange!(R, dchar))
     {
         alias std.format.formattedWrite fmt;
-        size_t len;
 
-        if (_id < Tok.Goesto || _id > Tok.Identifier) // complete tokens || keyword tokens
+        string s = void;
+        if (_id < Tok.Goesto) // complete tokens
         {
-            auto s = *enforce(_id in tokToString, to!string(_id));
-            for (size_t i; i < s.length; ++len)
-                outp.put(std.utf.decode(s, i));
+            s = tokToString[_id];
+        }
+        else if (_id > Tok.Identifier) // keyword tokens
+        {
+            s = tokToString[Tok.Goesto + _id - Tok.Identifier];
         }
         else
         {
@@ -410,14 +411,16 @@ static struct DToken
             case Tok.SpecialTokenSeq:
             case Tok.Number:
             case Tok.Identifier:
-                for (size_t i; i < _text.length; ++len)
-                    outp.put(std.utf.decode(_text, i));
+                s = _text;
                 break;
 
             default:
                 assert(0);
             }
         }
+        size_t len;
+        for (size_t i; i < s.length; ++len)
+            outp.put(std.utf.decode(s, i));
         return len;
     }
 
