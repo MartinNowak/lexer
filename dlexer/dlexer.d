@@ -10,7 +10,12 @@ enum tabWidth = 4;
 
 private alias TokenDeclaration!string tok;
 
-immutable Tokens = [
+/*
+ * These patterns match complete tokens. Hooks are only used to
+ * disambiguate the case where a complete token can be the beginning
+ * of a different token.
+ */
+immutable Complete = [
     tok("Lcurly"    , "{"   ),
     tok("Rcurly"    , "}"   ),
     tok("Lparen"    , "("   ),
@@ -83,6 +88,13 @@ immutable Tokens = [
     tok("Pow"       , "^^"  ),
     tok("Powass"    , "^^=" ),
     tok("Goesto"    , "=>"  ),
+];
+
+/*
+ * These patterns match the beginning tokens. Hooks are used to lex
+ * the rest of these tokens.
+ */
+immutable Incomplete = [
     tok("StringLit" , "\""   , q{doubleQuotedString}   ),
     tok("StringLit" , "r\""  , q{wysiwygString}        ),
     tok("StringLit" , "`"    , q{wysiwygString}        ),
@@ -99,23 +111,25 @@ immutable Tokens = [
     tok("LComment"  , "//"   , q{lineComment}          ),
     tok("BComment"  , "/*"   , q{blockComment}         ),
     tok("BComment"  , "/+"   , q{blockComment}         ),
+
+    tok("SpecialTokenSeq", "#" , q{specialTokenSeq}),
 ];
 
 /*
- * Declare enum members used by hooks. Identifier is also used to
- * mark start of keywords.
+ * Declare additional tokens which come without patterns. These are
+ * only matched in hooks. Identifier is also used to mark the start of
+ * keywords.
  */
 immutable Additional = [
-    tok("SpecialTokenSeq", "#" , q{specialTokenSeq}),
     tok("Number"         ),
     tok("Identifier"     ),
 ];
 
 /*
- * Declare enum members for keywords but don't lex their
- * patterns. Instead they are lexed as identifiers and looked up in a
- * hash table. Keywords must be capitalized to not conflict with D's
- * keywords, special tokens (__LINE__) are also added capitalized.
+ * Declare tokens for keywords. These come without a matching pattern
+ * because they are lexed as identifiers and looked up in a hash
+ * table. The Tok enum names are capitalized to not conflict with D's
+ * keywords.
  */
 immutable Keywords = [
     tok("This"           ),
@@ -229,24 +243,33 @@ immutable Keywords = [
     tok("Macro"          ),
     tok("Pure"           ),
     tok("Nothrow"        ),
-    tok("__ArgTypes"     ),
-    tok("__Thread"       ),
-    tok("__GShared"      ),
-    tok("__Traits"       ),
-    tok("__Overloadset"  ),
     tok("Shared"         ),
     tok("Immutable"      ),
-    tok("__Date__"       ),
-    tok("__Eof__"        ),
-    tok("__Time__"       ),
-    tok("__TimeStamp__"  ),
-    tok("__Vendor__"     ),
-    tok("__Version__"    ),
-    tok("__File__"       ),
-    tok("__Line__"       ),
 ];
 
-immutable TokenSpec = Tokens ~ Additional ~ Keywords;
+/*
+ * These tokens match the internal keywords listed in the pattern
+ * column. We're still lexing them as identifiers and use a hash table
+ * lookup.
+ */
+immutable InternalKeywords = [
+    tok("ArgTypes"   , "__argTypes"    ),
+    tok("Thread"     , "__thread"      ),
+    tok("GShared"    , "__gshared"     ),
+    tok("Traits"     , "__traits"      ),
+    tok("Overloadset", "__overloadset" ),
+    tok("DATE"       , "__DATE__"      ),
+    tok("EOF"        , "__EOF__"       ),
+    tok("TIME"       , "__TIME__"      ),
+    tok("TIMESTAMP"  , "__TIMESTAMP__" ),
+    tok("VENDOR"     , "__VENDOR__"    ),
+    tok("VERSION"    , "__VERSION__"   ),
+    tok("FILE"       , "__FILE__"      ),
+    tok("LINE"       , "__LINE__"      ),
+];
+
+/// concat all declarations to declate the Tok enum
+immutable TokenSpec = Complete ~ Incomplete ~ Additional ~ Keywords ~ InternalKeywords;
 
 /**
  * Tok enum.
@@ -267,30 +290,22 @@ private static string keywordTab()
 {
     string tab = "[";
     foreach(decl; Keywords)
-    {
-        string pattern = decl._name.front == '_'
-            ? toUpper(decl._name)
-            : toLower(decl._name);
-
-        tab ~= "\"" ~ pattern ~ "\": Tok." ~ decl._name ~ ", ";
-    }
+        tab ~= "\"" ~ decl._name ~ "\": Tok." ~ decl._name ~ ", ";
+    foreach(decl; InternalKeywords)
+        tab ~= "\"" ~ decl._pattern ~ "\": Tok." ~ decl._name ~ ", ";
     tab ~= "]";
     return tab;
 }
 
 private static string tokToStringTab()
 {
-    bool[string] set;
     string tab = "[";
-
-    foreach(i, decl; Tokens)
-    {
-        if (decl._name in set)
-            continue;
-
+    foreach(i, decl; Complete)
         tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
-        set[decl._name] = true;
-    }
+    foreach(i, decl; Keywords)
+        tab ~= "Tok." ~ decl._name ~ " : `" ~ toLower(decl._name) ~ "`,\n";
+    foreach(i, decl; InternalKeywords)
+        tab ~= "Tok." ~ decl._name ~ " : `" ~ decl._pattern ~ "`,\n";
     tab ~= "]";
     return tab;
 }
@@ -299,6 +314,7 @@ shared static this()
 {
     keywords = mixin(keywordTab());
     tokToString = mixin(tokToStringTab());
+    pragma(msg, tokToStringTab());
 }
 
 /**
@@ -375,38 +391,32 @@ static struct DToken
     {
         alias std.format.formattedWrite fmt;
         size_t len;
-        switch (_id)
+
+        if (_id < Tok.Goesto || _id > Tok.Identifier) // complete tokens || keyword tokens
         {
-        case Tok.Number:
-        case Tok.CharLit:
-        case Tok.StringLit:
-        case Tok.LComment:
-        case Tok.BComment:
-        case Tok.Identifier:
-        case Tok.SpecialTokenSeq:
-            for (size_t i; i < _text.length; ++len)
-                outp.put(std.utf.decode(_text, i));
-            break;
-
-        default:
-            if (_id < Tok.Identifier)
+            auto s = *enforce(_id in tokToString, to!string(_id));
+            for (size_t i; i < s.length; ++len)
+                outp.put(std.utf.decode(s, i));
+        }
+        else
+        {
+            switch (_id)
             {
-                auto s = *enforce(_id in tokToString, to!string(_id));
-                for (size_t i; i < s.length; ++len)
-                    outp.put(std.utf.decode(s, i));
-            }
-            else
-            {
-                auto s = to!string(_id);
-                if (s.front == '_')
-                    s = toUpper(s);
-                else
-                    s = toLower(s);
+            // incomplete and additional tokens
+            case Tok.StringLit:
+            case Tok.CharLit:
+            case Tok.LComment:
+            case Tok.BComment:
+            case Tok.SpecialTokenSeq:
+            case Tok.Number:
+            case Tok.Identifier:
+                for (size_t i; i < _text.length; ++len)
+                    outp.put(std.utf.decode(_text, i));
+                break;
 
-                for (size_t i; i < s.length; ++len)
-                    outp.put(std.utf.decode(s, i));
+            default:
+                assert(0);
             }
-            break;
         }
         return len;
     }
