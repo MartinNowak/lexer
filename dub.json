@@ -1,0 +1,21 @@
+{
+    "name": "dlexer",
+    "description": "D lexer",
+    "copyright": "Copyright © 2013-, Martin Nowak",
+    "authors": ["Martin Nowak"],
+    "license": "MIT",
+    "dependencies": {
+    },
+    "configurations": [
+        {
+            "name": "application",
+            "targetType": "executable",
+            "mainSourceFile": "src/app.d",
+        },
+        {
+            "name": "library",
+            "targetType": "library",
+            "excludeSourceFiles": ["src/app.d"],
+        },
+    ],
+}
