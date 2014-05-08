@@ -1,17 +1,31 @@
-import std.stdio;
+import std.stdio, std.getopt;
 import dlexer;
+
+enum usage = "usage: lexer [-e|--echo] [-v|--verbose] <sources>";
+
+int printUsage() { writeln(usage); return 0; }
+int errorUsage() { stderr.writeln(usage); return 1; }
 
 int main(string[] args)
 {
-    if (args.length < 2)
-    {
-        stderr.writeln("usage: lexer [--echo] <sources>");
-        return 1;
-    }
+    bool echo, help, verbose;
+    try
+        getopt(args,
+               "e|echo", &echo,
+               "h|help", &help,
+               "v|verbose", &verbose);
+    catch (Exception e)
+        return errorUsage();
 
-    if (args[1] == "--echo")
+    if (args.length < 2)
+        return errorUsage();
+
+    if (help)
+        return printUsage();
+
+    if (echo)
     {
-        foreach(arg; args[2 .. $])
+        foreach(arg; args[1 .. $])
             putTokens(lexFile(arg), stdout.lockingTextWriter());
     }
     else
@@ -20,12 +34,20 @@ int main(string[] args)
         {
             auto lexer = lexFile(arg);
             size_t sum;
-            foreach(tok; lexer)
+            if (verbose)
             {
-                ++sum;
-                // writeln(tok);
+                foreach(tok; lexer)
+                {
+                    ++sum;
+                    writeln(tok);
+                }
             }
-            writeln(sum);
+            else
+            {
+                foreach(tok; lexer)
+                    ++sum;
+            }
+            writefln("%s: %s tokens", arg, sum);
         }
     }
     return 0;
