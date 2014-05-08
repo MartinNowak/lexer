@@ -1333,6 +1333,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
         input.popFront; ++_loc._col;
         if (!isIdStartLetter(input.front))
             goto Lerr;
+        {
         auto tok = nextToken(input);
         if (tok._id != Tok.Identifier || tok._text != "line")
             goto Lerr;
@@ -1349,6 +1350,7 @@ struct DLexer(R) if(is(ElementType!R : dchar))
         if (!skipNewLine(input))
             goto Lerr;
         return DToken(Tok.SpecialTokenSeq, capture(start, len), loc);
+        }
 
     Lerr:
         throw new Exception(
