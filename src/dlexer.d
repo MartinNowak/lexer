@@ -123,6 +123,7 @@ immutable Incomplete = [
 immutable Additional = [
     tok("Number"         ),
     tok("Identifier"     ),
+    tok("WhiteSpace"     ),
 ];
 
 /*
@@ -268,7 +269,7 @@ immutable InternalKeywords = [
     tok("LINE"       , "__LINE__"      ),
 ];
 
-/// concat all declarations to declate the Tok enum
+/// concat all declarations to declare the Tok enum
 immutable TokenSpec = Complete ~ Incomplete ~ Additional ~ Keywords ~ InternalKeywords;
 
 /**
@@ -391,13 +392,13 @@ static struct DToken
         alias std.format.formattedWrite fmt;
 
         string s = void;
-        if (_id < Tok.Goesto) // complete tokens
+        if (_id <= Tok.Goesto) // complete tokens
         {
             s = tokToString[_id];
         }
         else if (_id > Tok.Identifier) // keyword tokens
         {
-            s = tokToString[Tok.Goesto + _id - Tok.Identifier];
+            s = tokToString[Tok.Goesto + _id - Tok.WhiteSpace];
         }
         else
         {
