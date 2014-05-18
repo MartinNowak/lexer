@@ -6,6 +6,7 @@ enum usage = "usage: lexer [-e|--echo] [-v|--verbose] <sources>";
 int printUsage() { writeln(usage); return 0; }
 int errorUsage() { stderr.writeln(usage); return 1; }
 
+version (unittest) {} else
 int main(string[] args)
 {
     bool echo, help, verbose;
